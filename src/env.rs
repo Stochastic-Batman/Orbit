@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::RngExt; 
 
 
 pub type State = [f32; 4];
@@ -15,7 +15,7 @@ pub struct StepResult {
     pub next_state: State,
     pub reward: f32,
     pub is_done: bool,
-    pub is_truncated: bool, // the agent shouldn't think the state is 'terminal' (value = 0); it just ran out of time.
+    pub is_truncated: bool, 
 }
 
 pub struct OrbitEnv {
@@ -29,11 +29,11 @@ pub struct OrbitEnv {
 impl OrbitEnv {
 
     pub fn new(agent_pos: Option<[f32; 2]>, target_pos: Option<[f32; 2]>, max_steps: Option<u32>, step_size: Option<f32>) -> Self {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng(); 
 
         Self {
-            agent_pos: agent_pos.unwrap_or_else(|| [rng.gen_range(-1.0..=1.0), rng.gen_range(-1.0..=1.0)]),
-            target_pos: target_pos.unwrap_or_else(|| [rng.gen_range(-1.0..=1.0), rng.gen_range(-1.0..=1.0)]),
+            agent_pos: agent_pos.unwrap_or_else(|| [rng.random_range(-1.0..=1.0), rng.random_range(-1.0..=1.0)]),
+            target_pos: target_pos.unwrap_or_else(|| [rng.random_range(-1.0..=1.0), rng.random_range(-1.0..=1.0)]),
             current_step: 0,
             max_steps: max_steps.unwrap_or(250),
             step_size: step_size.unwrap_or(0.05),
@@ -42,10 +42,10 @@ impl OrbitEnv {
 
     /// Reset the environment for a new episode.
     pub fn reset(&mut self, agent_pos: Option<[f32; 2]>, target_pos: Option<[f32; 2]>) -> State {
-        let mut rng = rand::thread_rng();
-
-        self.agent_pos = agent_pos.unwrap_or_else(|| [rng.gen_range(-1.0..=1.0), rng.gen_range(-1.0..=1.0)]);
-        self.target_pos = target_pos.unwrap_or_else(|| [rng.gen_range(-1.0..=1.0), rng.gen_range(-1.0..=1.0)]);
+        let mut rng = rand::rng(); 
+        
+        self.agent_pos = agent_pos.unwrap_or_else(|| [rng.random_range(-1.0..=1.0), rng.random_range(-1.0..=1.0)]);
+        self.target_pos = target_pos.unwrap_or_else(|| [rng.random_range(-1.0..=1.0), rng.random_range(-1.0..=1.0)]);
         self.current_step = 0;
 
         self.get_state()
@@ -70,7 +70,7 @@ impl OrbitEnv {
 
         let reward = if next_pos[0] < -1.0 || next_pos[0] > 1.0 || next_pos[1] < -1.0 || next_pos[1] > 1.0 
         {
-            -2.85  // penalty that exceeds the largest distance on the [-1, 1] x [-1, 1] grid by a little
+            -2.85  
         } else {
             -Self::calculate_distance(next_pos, self.target_pos)
         };
