@@ -14,14 +14,15 @@ The implementation uses the `dfdx` crate for neural network operations. This pro
 
 ```text
 orbit/
-├── Cargo.toml          # Project dependencies and metadata
-├── src/
-│   ├── main.rs         # Entry point: handles the training loop
-│   ├── env.rs          # The MDP: continuous navigation world logic
-│   ├── model.rs        # Neural network architectures using dfdx
-│   ├── agent.rs        # RL logic: A2C implementation and gradient updates
-│   └── utils.rs        # Math helpers and data logging
-└── README.md
+├── Cargo.toml                     # Project dependencies and metadata
+├── Orbit System Design.[tex|pdf]  # Description and some reasoning of the system
+├── README.md
+└── src/
+    ├── main.rs                    # Entry point: handles the training loop
+    ├── env.rs                     # The MDP: continuous navigation world logic
+    ├── model.rs                   # Neural network architectures using dfdx
+    ├── agent.rs                   # RL logic: A2C implementation and gradient updates
+    └── utils.rs                   # Math helpers and data logging
 ```
 
 ## Environment Setup

@@ -1,0 +1,75 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{geometry}
+\usepackage{hyperref}
+
+\geometry{a4paper, margin=1in}
+
+\title{\texttt{Orbit} \\ \large Continuous Navigation via Actor-Critic \\ Methods using Neural Function Approximation}
+\author{Stochastic Batman}
+\date{March 16, 2026}
+
+\begin{document}
+	
+	\maketitle
+	
+	\section*{Introduction}
+	This document outlines the thinking process and systematic design for \href{https://github.com/Stochastic-Batman/Orbit}{\texttt{Orbit}}. It serves as a bridge between the theoretical foundations established in \textit{Mathematical Foundations of Reinforcement Learning} by Shiyu Zhao and the practical implementation of neural function approximation in a continuous coordinate space.
+	
+	\section{Environment Specification (\texttt{env.rs})}
+	
+	The environment is modeled as a Markov Decision Process (MDP) where the agent must learn to navigate toward a target in a bounded 2D plane.
+	
+	\subsection{State Space $\mathcal{S}$}
+	
+	The state space is defined over a four-dimensional hypercube. To facilitate stable training in neural networks, all coordinates are normalized to the range $[-1, 1]$. I define the state vector $s \in \mathcal{S}$ as:
+	$$ s \doteq [x, y, x_{target}, y_{target}]^\top \in [-1, 1]^4 $$ 
+	To maintain consistency in subsequent notation, I denote the components of any state $s$ as:
+	\begin{itemize}
+		\item $s[0] = x$ (Agent's horizontal position) and $s[1] = y$ (Agent's vertical position)
+		\item $s[2] = x_{target}$ (Target's horizontal position) and $s[3] = y_{target}$ (Target's vertical position)
+	\end{itemize}
+	\textbf{Notation Note:} I use the shorthand $s[i, \dots, k]$ to represent a sub-vector consisting of elements from index $i$ to $k$ inclusive. For example, $s[0, 1]$ refers to the agent's coordinate pair $[s[0], s[1]]^\top$.
+	
+	\subsection{Action Space $\mathcal{A}$ and Transition Dynamics}
+	
+	I employ a discrete action space $\mathcal{A} = \{a_1, a_2, a_3, a_4, a_5\}$. Each action corresponds to a displacement vector $\Delta a \in \mathbb{R}^2$ with a step size magnitude $\Delta = 0.05$. The physical directions follow the clockwise convention:
+	
+	$$ \mathcal{A} = \{ 
+	\overset{\text{North}}{a_1}, 
+	\overset{\text{East}}{a_2}, 
+	\overset{\text{South}}{a_3}, 
+	\overset{\text{West}}{a_4}, 
+	\overset{\text{Stay}}{a_5} 
+	\} $$
+	
+	The state transition probability $p(s' | s, a)$ is deterministic. The next state $s'$ is calculated by applying the displacement to the agent's coordinates $s[0, 1]$ and clipping the result to the boundary: 
+	$$ s'[i] = \text{clip}(s[i] + \Delta a_i, -1, 1), \, i \in \{0, 1\} $$ 
+	The target coordinates remain stationary: $s'[2, 3] = s[2, 3]$.
+	
+	\subsection{Reward Function $r(s, a)$}
+	The reward signal provides dense feedback based on the Euclidean distance between the agent and the target. I define the distance function between any two points $p_1, p_2$ as:
+	$$ \text{dist}(p_1, p_2) \doteq \sqrt{ (p_1[0] - p_2[0])^2 + (p_1[1] - p_2[1])^2 } $$
+	
+	The reward function is formulated to ensure the boundary penalty is strictly lower than any possible reward achievable within the valid state space. In the square $[-1, 1]^2$, the maximum possible distance (the diagonal) is $\sqrt{2^2 + 2^2} = \sqrt{8} \approx 2.8284$. 
+	
+	I define the penalty as $-2.85$. This extra $\approx -0.02$ is to ensure that a boundary collision is always perceived by the Critic as a "worse" state than being at the furthest possible valid coordinate from the target.
+	$$ 
+	r(s, a) = 
+	\begin{cases} 
+		-2.85 & \text{if } s[0,1] + \Delta a \notin [-1, 1]^2 \text{ (Boundary Crossing)} \\
+		-\text{dist}(s'[0,1], s'[2,3]) & \text{otherwise}
+	\end{cases}
+	$$
+	
+	\subsection{Termination and Episodes}
+	The task is episodic with the following conditions:
+	\begin{itemize}
+		\item \textbf{Success Condition:} The episode terminates when $\text{dist}(s[0,1], s[2,3]) < 0.05$.
+		\item \textbf{Truncation Condition:} An episode is capped at $T_{max} = 250$ steps.
+		\item \textbf{Terminal Value:} Following the book's convention, the value of the terminal state $v(s_{terminal})$ is defined as $0$.
+	\end{itemize}
+	
+\end{document}
