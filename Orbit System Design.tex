@@ -72,4 +72,57 @@
 		\item \textbf{Terminal Value:} Following the book's convention, the value of the terminal state $v(s_{terminal})$ is defined as $0$.
 	\end{itemize}
 	
+	\section{Neural Function Approximation (\texttt{model.rs})}
+	
+	Following the Actor-Critic framework (Zhao, Chapter 10), I approximate the policy $\pi$ and the state-value function $v$ using neural networks.
+	
+	\subsection{Network Architectures}
+	I define two separate Multi-Layer Perceptrons (MLPs) with parameters $\theta$ (Actor) and $w$ (Critic). Both networks receive the state vector $s \in [-1, 1]^4$ as input.
+	
+	\begin{itemize}
+		\item \textbf{Actor Network $\pi(a | s, \theta)$}: Maps $s$ to 5 logits, followed by a softmax layer to produce a probability distribution over $\mathcal{A} = \{a_1, \dots, a_5\}$.
+		\item \textbf{Critic Network $\hat{v}(s, w)$}: Maps $s$ to a single scalar representing the state-value $v_\pi(s) = \mathbb{E}[G_t | S_t = s]$, which is the expected discounted return from state $s$.
+	\end{itemize}
+	
+	\subsection{The TD Error and Objective Functions}
+	To train the networks, I must derive the update signals based on the environment's feedback.
+	
+	\subsubsection{Original Equations}
+	From the textbook, the Temporal Difference (TD) error is $ \delta_t = R_{t+1} + \gamma v(S_{t+1}) - v(S_t) $. The objective is to minimize the Value Error for the Critic and maximize the expected return for the Actor via the Policy Gradient Theorem:
+	$$ \nabla_\theta J(\theta) = \mathbb{E} [ \nabla_\theta \ln \pi(A_t | S_t, \theta) q_\pi(S_t, A_t) ] $$
+	
+	\subsubsection{Derivations for \texttt{Orbit}}
+	In my implementation, I use the TD error $\delta_t$ as an unbiased estimate of the \textbf{advantage signal} $A(s, a) \doteq q_\pi(s, a) - v_\pi(s)$, which measures the relative benefit of a specific action compared to the average value of the state. I derive the following specific equations:
+	
+	\begin{enumerate}
+		\item \textbf{TD Error with Termination Logic}: 
+		For a transition yielding reward $R_{t+1}$ and next state $S_{t+1}$:
+		$$ \delta_t = 
+		\begin{cases} 
+			R_{t+1} - \hat{v}(S_t, w) & \text{if } \texttt{is\_done = true} \\
+			R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w) & \text{otherwise}
+		\end{cases} $$
+		
+		\textit{Note}: If \texttt{is\_truncated = true}, I still bootstrap with $\gamma \hat{v}(S_{t+1}, w)$ as the truncation is a boundary of time, not the underlying MDP state.
+		
+		\item \textbf{Critic Loss ($L_w$)}: Minimize the Mean Squared Error (MSE) of the TD error: $$ L(w) = \frac{1}{2} \delta_t^2 $$
+		
+		\item \textbf{Actor Loss ($L_\theta$)}: 
+		Using the log-likelihood trick and the TD error as the advantage signal, I define the loss for the \texttt{dfdx} optimizer as:
+		$$ L(\theta) = - \ln \pi(A_t | S_t, \theta) \delta_{t, \text{stop\_grad}} $$
+		where $\delta_{t, \text{stop\_grad}}$ indicates that the TD error is treated as a constant scalar during the actor's backpropagation. "$-$" before $\ln$ is because \texttt{dfdx} minimizes instead of maximizing. 
+	\end{enumerate}
+	
+	\subsection{Optimization and Hyperparameters}
+	The parameters $\theta$ and $w$ are updated using the Adam optimizer. To ensure stable convergence, I employ a two-time-scale update rule where the Critic typically learns faster than the Actor to provide a stable baseline for the advantage signal:
+	\begin{itemize}
+		\item \textbf{Discount Factor ($\gamma$)}: $0.99$ (Prioritizing long-term navigation).
+		\item \textbf{Learning Rates}: $\alpha_\theta = 1 \times 10^{-4}$ (Actor), $\alpha_w = 1 \times 10^{-3}$ (Critic).
+		\item \textbf{Entropy Regularization}: To prevent premature convergence to a sub-optimal deterministic policy, I may add an entropy term $H(\pi)$ to the Actor loss: $L_{total}(\theta) = L(\theta) - \beta H(\pi(s, \theta))$ where $\beta = 0.01$ .
+	\end{itemize}
+	
+	\subsection{Softmax Policy Derivation}
+	For the discrete action set $\{a_1, \dots, a_5\}$, the probability of selecting action $a_i$ given logits $z$ from the Actor is:
+	$$ \pi(a_i | s, \theta) = \frac{e^{z_i(s, \theta)}}{\sum_{j=1}^5 e^{z_j(s, \theta)}} $$
+	
 \end{document}
