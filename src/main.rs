@@ -7,11 +7,14 @@ use dfdx::prelude::*;
 use env::OrbitEnv;
 use agent::OrbitAgent;
 
+
 fn parse_pos(s: &str) -> Option<[f32; 2]> {
-    let parts: Vec<f32> = s.split(',')
-        .filter_map(|x| x.trim().parse().ok())
-        .collect();
-    if parts.len() == 2 { Some([parts[0], parts[1]]) } else { None }
+    let parts: Vec<f32> = s.split(',').filter_map(|x| x.trim().parse().ok()).collect();
+    if parts.len() == 2 { 
+        Some([parts[0], parts[1]]) 
+    } else { 
+        None 
+    }
 }
 
 fn main() {
