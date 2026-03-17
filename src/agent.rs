@@ -2,8 +2,6 @@ use dfdx::prelude::*;
 use dfdx::optim::Adam;
 use rand::distr::weighted::WeightedIndex; 
 use rand::prelude::*;
-use std::fs;
-use std::path::Path;
 
 use crate::env::{Action, State};
 use crate::model::{BuiltActor, BuiltCritic, ActorNetwork, CriticNetwork, Device};
@@ -95,28 +93,5 @@ impl OrbitAgent {
         let gradients = actor_loss.put_tape(tape).backward();
 
         self.actor_optimizer.update(&mut self.actor, &gradients).expect("Actor update failed");
-    }
-
-    pub fn save(&self, episode: usize, base_path: &str) {
-        let dir_path = format!("{}/episode_{}", base_path, episode);
-        fs::create_dir_all(&dir_path).expect("Could not create save directory");
-
-        self.actor.save(format!("{}/actor.npz", dir_path)).expect("Actor save failed");
-        self.critic.save(format!("{}/critic.npz", dir_path)).expect("Critic save failed");
-        self.actor_optimizer.save(format!("{}/actor_optim.npz", dir_path)).expect("Actor optim save failed");
-        self.critic_optimizer.save(format!("{}/critic_optim.npz", dir_path)).expect("Critic optim save failed");
-        
-        println!("Successfully saved model state to {}", dir_path);
-    }
-
-    pub fn load(&mut self, episode: usize, base_path: &str) {
-        let dir_path = format!("{}/episode_{}", base_path, episode);
-        
-        self.actor.load(format!("{}/actor.npz", dir_path)).expect("Actor load failed");
-        self.critic.load(format!("{}/critic.npz", dir_path)).expect("Critic load failed");
-        self.actor_optimizer.load(format!("{}/actor_optim.npz", dir_path)).expect("Actor optim load failed");
-        self.critic_optimizer.load(format!("{}/critic_optim.npz", dir_path)).expect("Critic optim load failed");
-
-        println!("Resumed training from episode {}", episode);
     }
 }

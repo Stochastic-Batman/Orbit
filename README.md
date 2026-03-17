@@ -50,22 +50,30 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-dfdx = "0.13.0" 
+dfdx = { version = "0.13.0", features = ["numpy"] }
 rand = "0.10.0"
 rayon = "1.11.0"
 ```
 
 ### 3. Building and running
 
-To compile the dependencies and the project, and then run the executable:
-
-```bash
-cargo build
-./target/debug/orbit
-```
-
-or
-
+To compile and run:
 ```bash
 cargo run
+```
+
+By default, the agent and target spawn at random positions each episode. You can fix the **initial** positions for the first episode using:
+```bash
+cargo run -- --agent x,y --target x,y
+```
+
+For example:
+```bash
+cargo run -- --agent 0.5,0.3 --target -0.8,-0.6
+```
+
+Both `x` and `y` must be within `[-1.0, 1.0]`. Subsequent episode resets are always random regardless of these flags. To build without running:
+```bash
+cargo build
+./target/debug/orbit --agent 0.0,0.0 --target 1.0,1.0
 ```
