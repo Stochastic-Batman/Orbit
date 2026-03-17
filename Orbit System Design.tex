@@ -9,7 +9,7 @@
 
 \title{\texttt{Orbit} \\ \large Continuous Navigation via Actor-Critic \\ Methods using Neural Function Approximation}
 \author{Stochastic Batman}
-\date{March 16, 2026}
+\date{March 16-17, 2026}
 
 \begin{document}
 	
@@ -72,45 +72,32 @@
 		\item \textbf{Terminal Value:} Following the book's convention, the value of the terminal state $v(s_{terminal})$ is defined as $0$.
 	\end{itemize}
 	
-	\section{Neural Function Approximation (\texttt{model.rs})}
+	\section{Reinforcement Learning Framework}
 	
-	Following the Actor-Critic framework (Zhao, Chapter 10), I approximate the policy $\pi$ and the state-value function $v$ using neural networks.
+	Following the Actor-Critic framework (Zhao, Chapter 10), I decouple the neural architectures from the training logic to ensure modularity.
 	
-	\subsection{Network Architectures}
-	I define two separate Multi-Layer Perceptrons (MLPs) with parameters $\theta$ (Actor) and $w$ (Critic). Both networks receive the state vector $s \in [-1, 1]^4$ as input.
-	
+	\subsection{Neural Architectures (\texttt{model.rs})}
+	I define the "blueprints" for the function approximators using the \texttt{dfdx} type-system. Both networks receive the state $s \in [-1, 1]^4$.
 	\begin{itemize}
-		\item \textbf{Actor Network $\pi(a | s, \theta)$}: Maps $s$ to 5 logits, followed by a softmax layer to produce a probability distribution over $\mathcal{A} = \{a_1, \dots, a_5\}$.
-		\item \textbf{Critic Network $\hat{v}(s, w)$}: Maps $s$ to a single scalar representing the state-value $v_\pi(s) = \mathbb{E}[G_t | S_t = s]$, which is the expected discounted return from state $s$.
+		\item \textbf{Actor $\pi_\theta$}: A 3-layer MLP mapping states to 5 action logits.
+		\item \textbf{Critic $v_w$}: A 3-layer MLP mapping states to a scalar value estimate.
 	\end{itemize}
 	
-	\subsection{The TD Error and Objective Functions}
-	To train the networks, I must derive the update signals based on the environment's feedback.
+	\subsection{The Actor-Critic Agent (\texttt{agent.rs})}
+	The \texttt{OrbitAgent} manages the interaction between the networks and the environment's feedback loop.
 	
-	\subsubsection{Original Equations}
-	From the textbook, the Temporal Difference (TD) error is $ \delta_t = R_{t+1} + \gamma v(S_{t+1}) - v(S_t) $. The objective is to minimize the Value Error for the Critic and maximize the expected return for the Actor via the Policy Gradient Theorem:
-	$$ \nabla_\theta J(\theta) = \mathbb{E} [ \nabla_\theta \ln \pi(A_t | S_t, \theta) q_\pi(S_t, A_t) ] $$
+	\subsubsection{Temporal Difference and Advantage}
+	We utilize the TD error $\delta_t$ as an estimate of the advantage $A(s,a)$:
+	$$ \delta_t = R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w) $$
+	The agent handles termination by setting $\hat{v}(S_{t+1}, w) = 0$ if \texttt{is\_done} is true. For \texttt{is\_truncated}, we bootstrap to preserve the infinite-horizon MDP assumption.
 	
-	\subsubsection{Derivations for \texttt{Orbit}}
-	In my implementation, I use the TD error $\delta_t$ as an unbiased estimate of the \textbf{advantage signal} $A(s, a) \doteq q_\pi(s, a) - v_\pi(s)$, which measures the relative benefit of a specific action compared to the average value of the state. I derive the following specific equations:
-	
+	\subsubsection{Objective Functions}
+	The agent performs two distinct gradient updates per step:
 	\begin{enumerate}
-		\item \textbf{TD Error with Termination Logic}: 
-		For a transition yielding reward $R_{t+1}$ and next state $S_{t+1}$:
-		$$ \delta_t = 
-		\begin{cases} 
-			R_{t+1} - \hat{v}(S_t, w) & \text{if } \texttt{is\_done = true} \\
-			R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w) & \text{otherwise}
-		\end{cases} $$
-		
-		\textit{Note}: If \texttt{is\_truncated = true}, I still bootstrap with $\gamma \hat{v}(S_{t+1}, w)$ as the truncation is a boundary of time, not the underlying MDP state.
-		
-		\item \textbf{Critic Loss ($L_w$)}: Minimize the Mean Squared Error (MSE) of the TD error: $$ L(w) = \frac{1}{2} \delta_t^2 $$
-		
-		\item \textbf{Actor Loss ($L_\theta$)}: 
-		Using the log-likelihood trick and the TD error as the advantage signal, I define the loss for the \texttt{dfdx} optimizer as:
-		$$ L(\theta) = - \ln \pi(A_t | S_t, \theta) \delta_{t, \text{stop\_grad}} $$
-		where $\delta_{t, \text{stop\_grad}}$ indicates that the TD error is treated as a constant scalar during the actor's backpropagation. "$-$" before $\ln$ is because \texttt{dfdx} minimizes instead of maximizing. 
+		\item \textbf{Value Update}: Minimizes $L(w) = \frac{1}{2} \delta_t^2$ via backpropagation through the Critic.
+		\item \textbf{Policy Update}: Minimizes the weighted negative log-likelihood with entropy regularization:
+		$$ L(\theta) = - \ln \pi(A_t | S_t, \theta) \delta_{t, \text{stop\_grad}} - \beta H(\pi) $$
+		where $\delta_{t, \text{stop\_grad}}$ indicates that the TD error is treated as a constant scalar during the actor's backpropagation. "$-$" before $\ln$ is because \texttt{dfdx} minimizes instead of maximizing.
 	\end{enumerate}
 	
 	\subsection{Optimization and Hyperparameters}

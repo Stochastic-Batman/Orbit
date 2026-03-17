@@ -15,6 +15,7 @@ The implementation uses the `dfdx` crate for neural network operations. This pro
 ```text
 orbit/
 ├── Cargo.toml                     # Project dependencies and metadata
+├── models/                        # Saving Actor and Critic networks along their optimizers (per episode)
 ├── Orbit System Design.[tex|pdf]  # Description and some reasoning of the system
 ├── README.md
 └── src/
@@ -22,7 +23,7 @@ orbit/
     ├── env.rs                     # The MDP: continuous navigation world logic
     ├── model.rs                   # Neural network architectures using dfdx
     ├── agent.rs                   # RL logic: A2C implementation and gradient updates
-    └── utils.rs                   # Math helpers and data logging
+    └── utils.rs                   # Data logging
 ```
 
 ## Environment Setup
@@ -54,10 +55,17 @@ rand = "0.10.0"
 rayon = "1.11.0"
 ```
 
-### 3. Build the project
+### 3. Building and running
 
-To compile the dependencies and the project, run:
+To compile the dependencies and the project, and then run the executable:
 
 ```bash
 cargo build
+./target/debug/orbit
+```
+
+or
+
+```bash
+cargo run
 ```
